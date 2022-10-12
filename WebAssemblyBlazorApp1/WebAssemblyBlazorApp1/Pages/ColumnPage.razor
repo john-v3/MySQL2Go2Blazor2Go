@@ -1,0 +1,107 @@
+﻿@page "/SelectColumns"
+@using Microsoft.AspNetCore.WebUtilities
+@inject HttpClient Http
+@inject NavigationManager NavManager
+
+<PageTitle>Tables</PageTitle>
+
+<h1>Tables</h1>
+
+<p>This component demonstrates fetching data from the server.</p>
+
+@if (InfoSchemaColumns == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Column</th>
+                <th>Type</th>
+                <th>Include</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var singleCol in InfoSchemaColumns)
+            {
+                <tr>
+                    <td>@singleCol.COLUMN_NAME</td>
+                    <td>@singleCol.COLUMN_TYPE</td>
+                    <input type="checkbox" @onchange="eventArgs => { CheckboxClicked(singleCol, eventArgs.Value); }" />
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <button type="submit" @onclick="eventArgs => {GenerateCode();}">Generate</button>
+    
+    <h1>Generated Templates</h1>
+    <h2>C# classes</h2>
+    <textarea id="generatedC" @bind="generatedCSharpText"></textarea>
+    <h2>Go Struct</h2>
+    <textarea id="generatedGo" @bind="generatedGoCodeText"></textarea>
+
+
+}
+
+@code {
+    private InfoSchemaColumns[]? InfoSchemaColumns;
+    private List<InfoSchemaColumns> TargetSchemaColumns = new List<InfoSchemaColumns>();
+    private Dictionary<String, String> parameters = new Dictionary<String, String> { };
+    private String generatedGoCodeText = "";
+    private String generatedCSharpText = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var uri = NavManager.ToAbsoluteUri(NavManager.Uri);
+
+        var queryStrings = QueryHelpers.ParseQuery(uri.Query);
+        foreach (System.Collections.Generic.KeyValuePair<string, Microsoft.Extensions.Primitives.StringValues> queryPair in queryStrings)
+        {
+            if (queryStrings.TryGetValue(queryPair.Key, out Microsoft.Extensions.Primitives.StringValues queryValue))
+            {
+                string convertedValue = queryValue;
+                parameters.Add(queryPair.Key, convertedValue);
+            }
+        };
+
+        var targetURI = QueryHelpers.AddQueryString("http://localhost:10000/columns", parameters);
+
+        InfoSchemaColumns = await Http.GetFromJsonAsync<InfoSchemaColumns[]>(targetURI);
+    }
+
+    protected void CheckboxClicked(InfoSchemaColumns column, object aChecked)
+    {
+        if ((bool)aChecked)  
+        {  
+            if (!TargetSchemaColumns.Contains(column))  
+            {  
+                TargetSchemaColumns.Add(column);  
+            }  
+        }  
+        else  
+        {  
+            if (TargetSchemaColumns.Contains(column))  
+            {  
+                TargetSchemaColumns.Remove(column);  
+            }  
+        }  
+    }
+
+    protected void GenerateCode()
+    {
+        // generate go structs
+        var factory = new BlazorGOSQLCodeTemplateGenerator(TargetSchemaColumns);
+        generatedGoCodeText = factory.GoLangStructCode();
+
+
+        // generate mysql --> go ?
+
+        // generate blazor stuff
+        generatedCSharpText = factory.CSharpClassCode();
+
+    }
+
+}

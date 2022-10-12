@@ -1,0 +1,59 @@
+﻿@page "/GetTables"
+@using Microsoft.AspNetCore.WebUtilities
+@inject HttpClient Http
+@inject NavigationManager NavManager
+
+<PageTitle>Tables</PageTitle>
+
+<h1>Tables</h1>
+
+<p>This component demonstrates fetching data from the server.</p>
+
+@if (InfoTables == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Schema</th>
+                <th>Name</th>
+                <th>Select</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var infoTable in InfoTables)
+            {
+                <tr>
+                    <td>@infoTable.TABLE_SCHEMA</td>
+                    <td>@infoTable.TABLE_NAME</td>
+                    <td><a id="test" @onclick="((e) => OnSelectTable(e, infoTable))">Generate</a></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private InfoSchemaTables[]? InfoTables;
+
+    protected override async Task OnInitializedAsync()
+    {
+        InfoTables = await Http.GetFromJsonAsync<InfoSchemaTables[]>("http://localhost:10000/tables");
+    }    
+
+    protected void OnSelectTable(MouseEventArgs e, InfoSchemaTables table)
+    {
+        var parameters = new Dictionary<string, string>
+        {
+            ["table"] = table.TABLE_NAME,
+            ["schema"] = table.TABLE_SCHEMA
+        };
+        var test = QueryHelpers.AddQueryString("/SelectColumns", parameters);
+
+        NavManager.NavigateTo(test);
+    }
+
+}
